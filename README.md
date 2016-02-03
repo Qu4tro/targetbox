@@ -1,8 +1,6 @@
 Six Thousand (But you can call me 6k)
 ========
 
-Remmeber to bold all 6k
-
 *Fast TUI prototyping*
 
 Quick usage overview:
@@ -15,10 +13,10 @@ Quick usage overview:
 
 ![Menu screenshot](img/screenshot.png)
 
-Why 6k?
+Why **6k**?
 ----------
 
-That's a good question. 6k takes inspiration from other projects like 
+That's a good question. **6k** takes inspiration from other projects like 
 [Choose](https://github.com/geier/choose), 
 [Pick](https://github.com/thoughtbot/pick) and
 [Selecta](https://github.com/garybernhardt/selecta).  
