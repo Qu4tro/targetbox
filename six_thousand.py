@@ -19,6 +19,77 @@ default_colorscheme = Colorscheme(termbox.WHITE, termbox.BLACK,
                                   termbox.BLACK, termbox.CYAN,
                                   termbox.BLACK, termbox.RED)
 
+
+class Screen(object):
+    """
+    The screen will be the object that will abstract over the physical representation of this menu. 
+    """
+
+    def __init__(self, terminal):
+
+        self.terminal = terminal
+
+        self.startY = 0
+        self.endY = self.terminal.height()
+
+        self.lines = []
+
+        self.toUpdate = None
+
+
+    def update(self):
+        if toUpdate is None:
+            draw_screen()
+        else:
+            for line in toUpdate:
+                self.draw_line(line, present=False)
+
+        self.terminal.present()
+
+    def draw_line(self, n, present=False):
+        """
+        Draw the nth line
+        """
+
+        if n >= len(self.lines):
+            log.warning("Don't have line number {}".format(n))
+            return
+
+        if not(self.startY < n < self.endY):
+            log.warning(("Can't draw this line, because it isn't within the borders of the screen\nstartX = {}; endY = {}; lineNumber = {}; line = \n{}".format(self.startY, self.endY, n, self.lines[n])))
+            return
+
+
+        line = self.lines[n]
+        for x, char in enumerate(line.chars):
+            relative_y = line.absolute_y - self.startY
+            line.interface.terminal.change_cell(x, relative_y, char, line.fg, line.bg)
+
+        if present:
+            self.terminal.present()
+
+    def draw_screen(self, present=False):
+        """
+        Draw the visible screen
+        """
+        for line_number in range(self.startY, self.endY):
+            self.draw_line(line_number, present=False)
+
+        if present:
+            self.terminal.present()
+
+    def scrollup(self, n=1):
+        self.startY -= n
+        self.endY   -= n
+        self.draw_screen()
+
+    def scrolldown(self, n=1):
+        self.startY += n
+        self.endY   += n
+        self.draw_screen()
+
+        
+
 class Line(object):
 
     def __init__(self, interface, content, y):
@@ -28,9 +99,9 @@ class Line(object):
         self.interface = interface
 
         self.content = str(content)
-        self.y = y
+        self.absolute_y = y
 
-        self.virtual_y = y
+        self.relative_y = y # To be deprecated soon enough
 
         self.fg = self.interface.colorscheme.default_fg
         self.bg = self.interface.colorscheme.default_bg
@@ -46,21 +117,17 @@ class Line(object):
     @content.setter
     def content(self, value):
         """
-        content setter does 3 things:
+        content setter does 2 things:
             * Keeps the value given with the self.original var
-            * Strip extra-chars and pad the string when needed
-            * Put it ready to being consumed by the change_cell 
-                function by converting everything to ASCII
+            * Format the string
         """
-        t_width = self.interface.terminal.width()
-
         self.original = value
         self.format_string()
 
     def format_string(self):
         """
         This function should format the input string in anyway you need
-        and in the end update the self.chars to 
+        and in the end update the self.chars to ASCCI so it's ready for consumption by change_cell
         In this case it strips any chars that can't be displayed and pad it.
         """
         # TODO: Padding here is a obvious hack.
@@ -77,23 +144,6 @@ class Line(object):
         self.chars = [ord(char) for char in self.formatted_string]
         
 
-    def shift(self, n):
-        """
-        This simple function will shift the virtual_y (the "display" line) by a distance of n
-        """
-        log.debug("Shifting from line {} to line {} with n = {}.", self.virtual_y, self.virtual_y + n, n)
-        self.virtual_y += n
-
-    def draw(self, present=True):
-
-        log.debug("Line being drawn!")
-
-        for x, char in enumerate(self.chars):
-            self.interface.terminal.change_cell(x, self.virtual_y, char, self.fg, self.bg)
-
-        if present:
-            self.interface.terminal.present()
-
 class SelectableLine(Line):
 
     def __init__(self, *args, **kwargs):
@@ -105,64 +155,41 @@ class SelectableLine(Line):
         self.selected = True
         self.fg = self.interface.colorscheme.selected_fg
         self.bg = self.interface.colorscheme.selected_bg
-        self.draw()
 
     def unselect(self):
         log.info("Line being unselected!")
         self.selected = False
         self.fg = self.interface.colorscheme.default_fg
         self.bg = self.interface.colorscheme.default_bg
-        self.draw()
 
 class Menu(object):
 
     def __init__(self, interface, elements):
+        log.info("Menu being created.")
         self.interface = interface
 
         self.elements = elements
         self.create_lines()
 
-        self.selected = 0
+        self.position = 0
 
         self.startY = 0
-        self.endY = self.interface.terminal.height
-
-        self.lines[self.selected].select()
+        self.endY = self.interface.terminal.height()
 
     def create_lines(self):
         self.lines = []
-        for y, element in enumerate(self.elements):
-            self.lines.append(SelectableLine(self.interface, element, y))
+        for absolute_y, element in enumerate(self.elements):
+            self.lines.append(SelectableLine(self.interface, element, absolute_y))
 
-    def draw(self, present=True):
-        for line in self.lines:
-            if self.interface.terminal.height >= line.virtual_y >= 0:
-                line.draw(present=False)
-
-        if present:
-            self.interface.terminal.present()
-
+    
     def up(self):
-        self.goto(self.selected - 1)
+        self.goto(self.position - 1)
 
     def down(self):
-        self.goto(self.selected + 1)
-
-    def scrollup(self, n=1):
-        for line in self.lines:
-            line.virtual_y -= n
-        self.startY -= n
-        self.endY -= n
-
-    def scrolldown(self, n=1):
-        for line in self.lines:
-            line.virtual_y += n
-        self.startY += n
-        self.endY += n
+        self.goto(self.position + 1)
 
     def goto(self, y):
-        old_y = self.selected
-        terminal_height = self.interface.terminal.height
+        old_y = self.position
         margin = 0 # TODO: Implement optional margin
 
         if (y == old_y): # Nothing to be done
@@ -171,33 +198,52 @@ class Menu(object):
         elif (y > old_y): # It went down
 
             # Check if it reached over the limit 
-            if y > len(self.lines):
-                self.goto(0) # Wrap around
+            maxLimit = len(self.lines) - 1
+            if y > maxLimit:
+                self.goto(maxLimit) # Keep it there
+                # self.goto(0) # Wrap around
+
 
             # Check if we need to scroll
             if y > self.endY:
+                # Scroll enough
                 diff = y - self.endY
-                self.scrolldown(diff)
+                self.interface.screen.scrolldown(diff)
 
 
         elif (y < old_y): # It went up
 
             # Check if it reached below the limit 
-            if y < 0:
-                self.goto(len(self.lines)) # Wrap around
+            minLimit = 0
+            if y < minLimit:
+                self.goto(minLimit) # Keep it there
+                # self.goto(maxLimit) # Wrap around
 
             # Check if we need to scroll
             if y < self.startY:
+                # Scroll enough
                 diff = y - self.endY
-                self.scrollup(diff)
+                self.interface.screen.scrollup(diff)
 
-        self.selected = y
-        self.lines[self.selected].select()
+        # Finally select the new line.
+        # This will also take care of unselecting the other line.
+        self.select_line(y)
 
-        self.lines[old_y].unselect()
+
+    def select_line(self, n):
+
+        self.lines[self.position].unselect()
+        self.lines[n].select()
+
+        self.interface.screen.draw_line(self.position, present=False)
+        self.interface.screen.draw_line(n, present=False)
+
+        self.interface.terminal.present()
+
+        self.position = n
 
     def get_selected(self):
-        return self.lines[selected].element
+        return self.lines[self.position].content
 
 class Interface(object):
 
@@ -205,6 +251,8 @@ class Interface(object):
         self.terminal = terminal
         self.colorscheme = colorscheme
         self.menu = Menu(self, list(map(str, range(190))))
+        self.screen = Screen(terminal)
+        self.screen.lines = self.menu.lines
 
     def resize(self):
         pass
@@ -221,7 +269,7 @@ class Interface(object):
 
 
     def run(self):
-        self.draw()
+        # self.draw()
         while True:
             event = self.terminal.poll_event()
             while event:
@@ -232,11 +280,11 @@ class Interface(object):
                     pass
                 if event_type == termbox.EVENT_RESIZE:
                     self.resize()
-                self.draw()
+                # self.draw()
                 event = self.terminal.peek_event()
 
-    def draw(self):
-        self.menu.draw()
+    # def draw(self):
+    #     self.menu.draw()
 
 
 def main():
