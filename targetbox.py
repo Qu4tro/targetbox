@@ -41,33 +41,38 @@ def add_header(width, grid, msg, color):
     return [gridline] + grid
 
 # def add_footer(grid):
-#     fmt_line = self.choices[i].ljust(width)
+#     fmt_line = self.elements[i].ljust(width)
 #     gridline = [color(ord(fmt_line[i])) for i in range(width)]
 
 class Menu:
-    def __init__(self, choices, active=0):
-        self.active = active
-        self.choices = choices
-        self.last = len(self.choices) - 1
+    def __init__(self, elements, cursor=0):
+        self.cursor = cursor
+        self.elements = elements
+        self.last = len(self.elements) - 1
+
+    @property
+    def selected(self):
+        return self.elements[self.cursor]
 
     def bound(self):
-        if self.active < 0:
+        if self.cursor < 0:
             self.goto(0)
-        if self.active >= len(self.choices):
+        if self.cursor >= len(self.elements):
             self.goto(self.last)
 
     def wrap(self):
-        if self.active < 0:
+        if self.cursor < 0:
             self.goto(self.last)
-        if self.active >= len(self.choices):
+        if self.cursor >= len(self.elements):
             self.goto(0)
 
     def goto(self, line):
-        self.active = line
+        log.info(f"go from {self.cursor} to {line}")
+        self.cursor = line
         self.bound()
 
     def go(self, incr):
-        self.goto(self.active + incr)
+        self.goto(self.cursor + incr)
     def move_up(self):
         self.go(-1)
     def move_down(self):
@@ -76,10 +81,10 @@ class Menu:
     def grid(self, width, height):
         grid = []
         for i in range(height):
-            color = active_color if i == self.active else normal_color
+            color = active_color if i == self.cursor else normal_color
 
-            if i < len(self.choices):
-                fmt_line = self.choices[i].ljust(width)
+            if i < len(self.elements):
+                fmt_line = self.elements[i].ljust(width)
                 gridline = [color(ord(fmt_line[i])) for i in range(width)]
             else:
                 gridline = [color(ord(" ")) for i in range(width)]
@@ -88,7 +93,10 @@ class Menu:
         return grid
 
 
-def updateKeyEvent(event, menu):
+def defaultMouseHandler(event, menu):
+    pass
+
+def defaultKeyHandler(event, menu):
     (event_type, ch, key, mod, w, h, x, y) = event
     if event_type == termbox.EVENT_KEY:
         if key == termbox.KEY_ARROW_DOWN:
@@ -100,41 +108,56 @@ def updateKeyEvent(event, menu):
         elif key == termbox.KEY_END:
             menu.goto(menu.last)
 
+        elif key == termbox.KEY_ENTER:
+            return menu.selected
+        elif key == termbox.KEY_ESC:
+            sys.exit()
+        else:
+            log.debug("key not found")
 
-def final_grid(t, menu):
-    w, h = size(t)
-    m = menu.grid(w, h - 1)
-    mh = add_header(w, m, "Deus 4", header_color)
 
-    return mh
-
-
-def main():
-    choices = [str(random.random()) for x in range(100)]
+def start(model, keyHandler=None, mouseHandler=None):
     with termbox.Termbox() as t:
-        menu = Menu(choices)
-        draw(t, final_grid(t, menu))
-        i = 0
+        draw(t, model.grid(*size(t)))
         while True:
             event = t.poll_event()
             while event:
                 (type, ch, key, mod, w, h, x, y) = event
 
                 if type == termbox.EVENT_RESIZE:
-                    draw(t, final_grid(t, menu))
+                    log.debug("redraw")
+                    draw(t, model.grid(*size(t)))
 
                 if type == termbox.EVENT_KEY:
-                    if key == termbox.KEY_ESC:
-                        sys.exit()
-                    updateKeyEvent(event, menu)
+                    if not(keyHandler):
+                        keyHandler = defaultKeyHandler
+                    
+                    out = keyHandler(event, model)
+                    if out:
+                        return out
 
                 if type == termbox.EVENT_MOUSE:
-                    pass # TODO
+                    if not(keyHandler):
+                        mouseHandler = defaultMouseHandler
+                    
+                    out = mouseHandler(event, model)
+                    if out:
+                        return out
 
+                if type == termbox.EVENT_MOUSE:
+                    if mouseHandler:
+                        mouseHandler(event, model)
 
                 event = t.peek_event()
 
-            draw(t, final_grid(t, menu))
+            draw(t, model.grid(*size(t)))
+
+    return ""
+
+def main():
+    elements = [str(random.random()) for x in range(100)]
+    menu = Menu(elements)
+    print(start(menu))
 
 if __name__ == "__main__":
     main()
