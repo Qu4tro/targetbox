@@ -1,4 +1,4 @@
-Six Thousand (But you can call me 6k)
+targetbox
 ========
 
 *Fast TUI prototyping*
@@ -6,23 +6,23 @@ Six Thousand (But you can call me 6k)
 Quick usage overview:
 
 ```python
->>> from six_thousand import Menu
+>>> from targetbox import Menu
 >>> content = range(100)
 >>> menu = Menu(content)
 ```
 
 ![Menu screenshot](img/screenshot.png)
 
-Why **6k**?
+Why **targetbox**?
 ----------
 
-That's a good question. **6k** takes inspiration from other projects like 
+That's a good question. **targetbox** takes inspiration from other projects like 
 [Choose](https://github.com/geier/choose), 
 [Pick](https://github.com/thoughtbot/pick) and
-[Selecta](https://github.com/garybernhardt/selecta).  
-However these tools only let you choose a option and do one thing with it.  
+[Selecta](https://github.com/garybernhardt/selecta).
+However these tools only let you choose a option and do one thing with it.
 
-6k is a new alternative that is more extensible! You can:
+targetbox is a new alternative that is more extensible! You can:
     Set your own keybindings that act on the selected text, 
     Change the colorscheme to your own liking and a lot more.
 
@@ -30,7 +30,7 @@ The Basics
 ----------
 
 ```python
->>> from six_thousand import Menu
+>>> from targetbox import Menu
 >>> content = range(100)
 >>> menu = Menu(content=content,
                 keybindings=keybindings
