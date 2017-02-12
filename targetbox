@@ -34,15 +34,11 @@ def draw(t, grid, full=True):
             t.change_cell(width, height, char, fg, bg)
     t.present()
 
-def add_header(width, grid, msg, color):
-    fmt_line = msg.ljust(width)
-    gridline = [color(ord(fmt_line[i])) for i in range(width)]
-
-    return [gridline] + grid
-
-# def add_footer(grid):
-#     fmt_line = self.elements[i].ljust(width)
+# def add_header(width, grid, msg, color):
+#     fmt_line = msg.ljust(width)
 #     gridline = [color(ord(fmt_line[i])) for i in range(width)]
+#     return [gridline] + grid
+
 
 class Menu:
     def __init__(self, elements, cursor=0):
@@ -91,7 +87,6 @@ class Menu:
 
             grid.append(gridline)
         return grid
-
 
 def defaultMouseHandler(event, menu):
     pass
@@ -144,10 +139,6 @@ def start(model, keyHandler=None, mouseHandler=None):
                     if out:
                         return out
 
-                if type == termbox.EVENT_MOUSE:
-                    if mouseHandler:
-                        mouseHandler(event, model)
-
                 event = t.peek_event()
 
             draw(t, model.grid(*size(t)))
@@ -155,8 +146,9 @@ def start(model, keyHandler=None, mouseHandler=None):
     return ""
 
 def main():
-    elements = [str(random.random()) for x in range(100)]
-    menu = Menu(elements)
+    input = [line.strip() for line in sys.stdin]
+    
+    menu = Menu(input)
     print(start(menu))
 
 if __name__ == "__main__":
