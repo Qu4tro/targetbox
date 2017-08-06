@@ -16,7 +16,7 @@ def size(t):
 def draw(t, grid, full=True):
     if full:
         w, h = size(t)
-        assert(len(grid) == h)
+        # assert(len(grid) == h)
         for line in grid:
             assert(len(line) == w)
 
@@ -52,10 +52,10 @@ def defaultMouseHandler(event, menu):
     pass
 
 
-def start(model, keyHandler=None, mouseHandler=None):
+def start(input, Menu, keyHandler=None, mouseHandler=None):
     with termbox.Termbox() as t:
-        model.window_size = size(t)
-        draw(t, model.grid())
+        menu = Menu(input, size(t))
+        draw(t, menu.grid())
         while True:
             event = t.poll_event()
             while event:
@@ -63,14 +63,14 @@ def start(model, keyHandler=None, mouseHandler=None):
 
                 if type == termbox.EVENT_RESIZE:
                     log.debug("redraw")
-                    model.window_size = size(t)
-                    draw(t, model.grid())
+                    menu.grid_size = size(t)
+                    draw(t, menu.grid())
 
                 if type == termbox.EVENT_KEY:
                     if not(keyHandler):
                         keyHandler = defaultKeyHandler
 
-                    out = keyHandler(event, model)
+                    out = keyHandler(event, menu)
                     if out:
                         return out
 
@@ -78,13 +78,13 @@ def start(model, keyHandler=None, mouseHandler=None):
                     if not(keyHandler):
                         mouseHandler = defaultMouseHandler
 
-                    out = mouseHandler(event, model)
+                    out = mouseHandler(event, menu)
                     if out:
                         return out
 
                 event = t.peek_event()
 
-            draw(t, model.grid())
+            draw(t, menu.grid())
 
     return ""
 
@@ -92,8 +92,8 @@ def start(model, keyHandler=None, mouseHandler=None):
 def main():
     input = [line.strip() for line in sys.stdin]
 
-    model = menu.ListMenu(input)
-    print(start(model))
+    m = menu.ListMenu
+    print(start(input, m))
 
 
 if __name__ == "__main__":
