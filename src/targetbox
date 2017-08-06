@@ -1,0 +1,100 @@
+#!/usr/bin/python
+# -*- encoding: utf-8 -*-
+
+import termbox
+import sys
+import logging as log
+import menu
+
+log.basicConfig(filename='dev.log', level=log.DEBUG)
+
+
+def size(t):
+    return (t.width(), t.height())
+
+
+def draw(t, grid, full=True):
+    if full:
+        w, h = size(t)
+        assert(len(grid) == h)
+        for line in grid:
+            assert(len(line) == w)
+
+    for height, line in enumerate(grid):
+        for width, cell in enumerate(line):
+            char, fg, bg = cell
+            if fg is None:
+                fg = termbox.WHITE
+            if bg is None:
+                bg = termbox.BLACK
+
+            t.change_cell(width, height, char, fg, bg)
+    t.present()
+
+
+def defaultKeyHandler(event, menu):
+    (event_type, ch, key, mod, w, h, x, y) = event
+    if event_type == termbox.EVENT_KEY:
+        if key == termbox.KEY_ARROW_DOWN:
+            menu.move_down()
+        elif key == termbox.KEY_ARROW_UP:
+            menu.move_up()
+
+        elif key == termbox.KEY_ENTER:
+            return menu.selected
+        elif key == termbox.KEY_ESC:
+            sys.exit()
+        else:
+            log.debug("key not found")
+
+
+def defaultMouseHandler(event, menu):
+    pass
+
+
+def start(model, keyHandler=None, mouseHandler=None):
+    with termbox.Termbox() as t:
+        model.window_size = size(t)
+        draw(t, model.grid())
+        while True:
+            event = t.poll_event()
+            while event:
+                (type, ch, key, mod, w, h, x, y) = event
+
+                if type == termbox.EVENT_RESIZE:
+                    log.debug("redraw")
+                    model.window_size = size(t)
+                    draw(t, model.grid())
+
+                if type == termbox.EVENT_KEY:
+                    if not(keyHandler):
+                        keyHandler = defaultKeyHandler
+
+                    out = keyHandler(event, model)
+                    if out:
+                        return out
+
+                if type == termbox.EVENT_MOUSE:
+                    if not(keyHandler):
+                        mouseHandler = defaultMouseHandler
+
+                    out = mouseHandler(event, model)
+                    if out:
+                        return out
+
+                event = t.peek_event()
+
+            draw(t, model.grid())
+
+    return ""
+
+
+def main():
+    input = [line.strip() for line in sys.stdin]
+
+    model = menu.ListMenu(input)
+    print(start(model))
+
+
+if __name__ == "__main__":
+    main()
